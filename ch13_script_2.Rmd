@@ -46,7 +46,26 @@ We are using the [**tidymodels** collection of packages](https://www.tidymodels.
 
 Useful functions include `logistic_reg()`, `set_engine()`, and `fit()`.
 
+```{r 1, echo = FALSE}
+
+logistic_mod <- logistic_reg() %>%
+  set_engine("glm")
+
+logistic_fit <- fit(logistic_mod,
+                    factor(dvote) ~ ideology + income + gender + race,
+                    data = nes)
+
+logistic_fit$fit %>%
+  tidy(conf.int = TRUE) %>%
+  select(term, estimate, conf.low, conf.high)
+
+```
+
+
 Interpret the coefficient of `income`.
+
+A 1 unit increase in income decreases the probability of voting for a democrat.
+
 
 Write a sentence to your smart-but-not-mathematical boss which explains the association of income with preference for the Democratic candidate. Include a notion of uncertainty.
 
@@ -57,6 +76,23 @@ Write a sentence to your smart-but-not-mathematical boss which explains the asso
 **Prompt:** Review [CART models](https://davidkane9.github.io/PPBDS/13-classification.html#classification-and-regression-trees-cart). Using the all the same independent variables as in Scene 1, estimate a CART model in which `vote` is the dependent variable.
 
 Hint: In addition to the functions you used in Scene 1, you may find `set_mode()` and `prp()` to be helpful.
+
+```{r 2, echo = FALSE}
+
+cart_mod <- decision_tree() %>%
+  set_engine("rpart",
+             model = TRUE) %>%
+  set_mode("classification")
+
+cart_fit <- fit(cart_mod,
+                    factor(dvote) ~ ideology + income + gender + race,
+                    data = nes)
+
+cart_fit$fit %>%
+  prp(extra = 6)
+
+
+```
 
 Print the fitted model.
 
@@ -77,10 +113,31 @@ Hint: In addition to the functions you used in Scenes 1 and 2, you may find `ran
 
 Print out and interpret the model.
 
+```{r 3,echo=FALSE}
+
+vote_mod <- rand_forest() %>%
+  set_engine("randomForest") %>%
+  set_mode("classification")
+
+forest_fit <- fit(vote_mod,
+                    factor(vote) ~ ideology + income + gender + race,
+                    data = nes)
+
+forest_fit
+
+
+tibble(`Error rate` = forest_fit$fit$err.rate[, "OOB"],
+       Trees = 1:500) %>%
+  ggplot(aes(x = Trees, y = `Error rate`)) +
+  geom_line() +
+  theme_classic()
+```
+
 How many trees did the forest use? Would we get better results if we used a different number of trees?
 
 What is OOB error?
-
+Out of Bag error - the chance of error at the maximum number of trees used (in this case, 500 trees has an
+error rate of 25.34%)
 
 
 # Scene 4
@@ -90,6 +147,19 @@ What is OOB error?
 1. Use the models we have already estimated.
 
 2. Add columns of each model's prediction on `nes` by using `mutate` on `nes`. You should use `predict` and feed it the saved model and `new_data = nes`. `pull()` the `.pred_class` from the prediction. 
+
+```{r 4, echo = FALSE}
+
+nes %>%
+  mutate(modal = 1,
+         logistic = predict(logistic_fit, new_data = nes) %>% 
+           pull(.pred_class),
+         tree = predict(cart_fit, new_data = nes) %>% 
+           pull(.pred_class),
+         forest = predict(forest_fit, new_data = nes) %>% 
+           pull(.pred_class)) 
+
+```
 
 3. Create a tibble with the accuracy of the prediction columns of each model.
 
